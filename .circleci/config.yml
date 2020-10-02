@@ -1,16 +1,24 @@
-jobs:
-  test-cluster:
-    executor: aws-eks/python3
-    parameters:
-      cluster-name:
-        description: |
-          Name of the EKS cluster
-        type: string
+
+commands:
+  init:
+    description: "Install"
     steps:
+      - run:
+          name: Install helmfile
+          command: |
+            curl -L --fail --retry 3 -o ./helmfile https://github.com/roboll/helmfile/releases/download/v0.130.0/helmfile_linux_amd64 
+            chmod +x ./helmfile
+            sudo mv ./helmfile /usr/local/bin/helmfile 
       - kubernetes/install
       - aws-eks/update-kubeconfig-with-authenticator:
-          cluster-name: << parameters.cluster-name >>
+          cluster-name: ${AWS_EKS_CLUSTER_NAME}
           cluster-authentication-role-arn: ${AWS_EKS_ROLE_ARN}
+
+jobs:
+  lint:
+    executor: aws-eks/python3
+    steps:
+      - init
       - run:
           command: |
             kubectl get services
@@ -20,7 +28,12 @@ orbs:
   kubernetes: circleci/kubernetes@0.11.1
 version: 2.1
 workflows:
-  deployment:
+  master:
     jobs:
-      - test-cluster:
-          cluster-name: ${AWS_EKS_CLUSTER_NAME}
+      - lint
+      # - dry-run:
+      #     command: |
+      #       kubectl get pods -n orchestrate-staging
+      #     name: Test pods
+      # - apply:
+      # - test:
